@@ -110,7 +110,23 @@ def webhook_plan_seguro():
             f"{len(asegurados)} asegurado(s) en 1 trámite (pendiente aprobación manual)"
         )
 
-        return jsonify({"ok": True}), 200
+        # Regresar los archivos generados para que Odoo los adjunte a la
+        # orden (así Carlos puede verlos sin entrar al servidor).
+        with open(excel_path, "rb") as f:
+            excel_base64 = base64.b64encode(f.read()).decode()
+
+        pdf_base64 = None
+        if pdf_path:
+            with open(pdf_path, "rb") as f:
+                pdf_base64 = base64.b64encode(f.read()).decode()
+
+        return jsonify({
+            "ok": True,
+            "excel_base64": excel_base64,
+            "excel_filename": os.path.basename(excel_path),
+            "pdf_base64": pdf_base64,
+            "pdf_filename": os.path.basename(pdf_path) if pdf_path else None,
+        }), 200
 
     except RPAError as e:
         log.exception("Error del RPA en Plan Seguro")

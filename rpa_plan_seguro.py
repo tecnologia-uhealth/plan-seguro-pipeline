@@ -66,6 +66,15 @@ class TipoMovimientoNoConfirmadoError(Exception):
     pass
 
 
+class RPAError(Exception):
+    """Envuelve cualquier error real del RPA (selector no encontrado, timeout,
+    etc.) junto con una captura de pantalla en base64 del momento exacto del
+    fallo, para poder diagnosticar sin tener que correrlo con headless=False."""
+    def __init__(self, mensaje, screenshot_base64=None):
+        super().__init__(mensaje)
+        self.screenshot_base64 = screenshot_base64
+
+
 def emitir_movimiento_plan_seguro(
     no_poliza: str,
     tipo_movimiento: str,  # "alta" o "baja" — ambos confirmados
@@ -211,6 +220,20 @@ def emitir_movimiento_plan_seguro(
             # 🛑 AQUÍ TERMINA EL RPA — el código OTP y la captura del folio
             # (una vez que llegue el correo) los termina un humano
             # manualmente en gmm@grupocyse.com, fuera de este script.
+
+        except Exception as e:
+            # Captura de pantalla en el momento exacto del error, para poder
+            # diagnosticar qué pasaba en el navegador sin necesidad de
+            # correrlo localmente — se regresa codificada en base64 dentro
+            # del error, para que el webhook la incluya en su respuesta.
+            screenshot_b64 = None
+            try:
+                screenshot_bytes = page.screenshot(full_page=True)
+                screenshot_b64 = base64.b64encode(screenshot_bytes).decode()
+            except Exception as e_screenshot:
+                log.warning(f"No se pudo tomar captura de pantalla del error: {e_screenshot}")
+
+            raise RPAError(str(e), screenshot_base64=screenshot_b64) from e
 
         finally:
             context.close()

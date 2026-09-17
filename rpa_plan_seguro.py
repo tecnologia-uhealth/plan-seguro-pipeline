@@ -34,7 +34,8 @@ VALORES CONFIRMADOS (de 2 grabaciones reales — alta y baja):
                           obligatorio para BAJA
     #inputAttachedDoc1 = Cuestionarios médicos (Orden de Trabajo) — SOLO
                           para ALTA, no existe/no aplica en BAJA
-    #inputAttachedDoc2 = Identificación oficial (INE) — SOLO para ALTA
+    #inputAttachedDoc2 = Identificación oficial (INE) — OPCIONAL, se sube
+                          solo si se recibe (confirmado: el portal no la exige)
     Para BAJA existe además un campo opcional "Acta de defunción" (sin
     asterisco, no obligatorio) — no confirmado su selector todavía, se deja
     sin implementar por ahora ya que no es requerido.
@@ -101,14 +102,13 @@ def emitir_movimiento_plan_seguro(
     if tipo_movimiento == "alta":
         if not orden_trabajo_path:
             raise ValueError("orden_trabajo_path es obligatorio para ALTA.")
-        if not ine_base64:
-            raise ValueError(
-                "No se recibió la identificación oficial (ine_base64) — es "
-                "obligatoria para registrar un ALTA."
-            )
-        ine_path = os.path.join(tempfile.gettempdir(), ine_nombre_archivo)
-        with open(ine_path, "wb") as f:
-            f.write(base64.b64decode(ine_base64))
+        # Identificación oficial: OPCIONAL — confirmado que el portal NO la
+        # exige (no tiene asterisco de obligatorio), a diferencia de "Lista
+        # de asegurados". Se sube solo si llega.
+        if ine_base64:
+            ine_path = os.path.join(tempfile.gettempdir(), ine_nombre_archivo)
+            with open(ine_path, "wb") as f:
+                f.write(base64.b64decode(ine_base64))
 
     mensaje = (
         "hola buen día por favor dar de alta al siguiente asegurado, gracias."
@@ -182,8 +182,9 @@ def emitir_movimiento_plan_seguro(
             page.locator("#inputAttachedDoc0").set_input_files(lista_asegurados_path)
             if tipo_movimiento == "alta":
                 page.locator("#inputAttachedDoc1").set_input_files(orden_trabajo_path)
-                page.locator("#inputAttachedDoc2").set_input_files(ine_path)
-                page.locator("#selectIdentifierTypeSelection2").select_option("INE")
+                if ine_path:
+                    page.locator("#inputAttachedDoc2").set_input_files(ine_path)
+                    page.locator("#selectIdentifierTypeSelection2").select_option("INE")
                 # Checkbox/consentimiento visto en la grabación de ALTA justo antes de registrar
                 page.locator("div").filter(has_text="A continuación puedes").nth(1).click()
             elif acta_defuncion_path:

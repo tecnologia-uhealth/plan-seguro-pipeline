@@ -13,12 +13,13 @@ no uno solo.
 """
 
 import os
+import base64
 import logging
 from flask import Flask, request, jsonify
 
 from generar_excel_plan_seguro import generar_excel_plan_seguro
 from generar_orden_trabajo import generar_orden_trabajo
-from rpa_plan_seguro import emitir_movimiento_plan_seguro
+from rpa_plan_seguro import emitir_movimiento_plan_seguro, RPAError
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("webhook_plan_seguro")
@@ -110,6 +111,23 @@ def webhook_plan_seguro():
         )
 
         return jsonify({"ok": True}), 200
+
+    except RPAError as e:
+        log.exception("Error del RPA en Plan Seguro")
+        screenshot_path = None
+        if e.screenshot_base64:
+            screenshot_path = f"{TRABAJO_DIR}/error_screenshot_{orden_id if 'orden_id' in dir() else 'x'}.png"
+            try:
+                with open(screenshot_path, "wb") as f:
+                    f.write(base64.b64decode(e.screenshot_base64))
+            except Exception:
+                screenshot_path = None
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "screenshot_base64": e.screenshot_base64,  # decodificable para ver qué pasaba
+            "screenshot_guardado_en_servidor": screenshot_path,
+        }), 500
 
     except Exception as e:
         log.exception("Error procesando movimiento Plan Seguro")

@@ -98,6 +98,27 @@ def generar_orden_trabajo(
         "Text34": nota_grupo + "FAVOR DE DAR DE ALTA, GRACIAS",
     }
 
+    # ⚠️ CRÍTICO: la plantilla puede traer datos reales de un trámite
+    # anterior (confirmado — apareció "DIEGO ELIAN CUEVAS ESPINOSA" en la
+    # fila 2 sin que nosotros lo hubiéramos puesto ahí). Antes de escribir
+    # nada, se borran TODOS los campos del PDF sin excepción, para
+    # garantizar que nunca se filtre información de otra persona/trámite,
+    # sin importar qué traiga la plantilla.
+    campos_existentes = reader.get_fields() or {}
+    limpieza = {}
+    for nombre_campo, campo in campos_existentes.items():
+        tipo_campo = campo.get('/FT')
+        if tipo_campo == '/Tx':
+            limpieza[nombre_campo] = ""
+        # Los checkboxes/radio (/Btn) se dejan tal cual el valor por
+        # defecto del PDF (normalmente "Off") — no forzamos ahí porque
+        # update_page_form_field_values con "" no aplica bien a botones,
+        # y de cualquier forma no representan datos personales por sí solos.
+
+    for pagina in writer.pages:
+        if limpieza:
+            writer.update_page_form_field_values(pagina, limpieza)
+
     for pagina in writer.pages:
         writer.update_page_form_field_values(pagina, datos)
 

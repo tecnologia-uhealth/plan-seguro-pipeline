@@ -96,6 +96,11 @@ def generar_orden_trabajo(
         "f1_af_date": _fecha_ddmmyyyy(a["fecha_nacimiento"]),
         "Text12": a.get("parentesco", ""),
         "Text34": nota_grupo + "FAVOR DE DAR DE ALTA, GRACIAS",
+        # Sexo (checkbox) — CONFIRMADO: el campo "Check Box2" (fila 1)
+        # tiene 2 posiciones con nombres internos inconsistentes por una
+        # rareza de codificación del PDF original: "Sí" = Masculino,
+        # "F" = Femenino.
+        "Check Box2": "Sí" if a["sexo"] == "M" else "F",
     }
 
     # ⚠️ CRÍTICO: la plantilla puede traer datos reales de un trámite
@@ -121,12 +126,6 @@ def generar_orden_trabajo(
 
     for pagina in writer.pages:
         writer.update_page_form_field_values(pagina, datos)
-
-    # --- Sexo (checkbox) — TODO: confirmar si Check Box2/Check Box3 son M/F ---
-    # Por ahora se deja SIN marcar hasta confirmar cuál checkbox corresponde
-    # a cuál género — mejor dejarlo vacío que marcarlo mal.
-    # sexo_field = "Check Box2" if a["sexo"] == "M" else "Check Box3"
-    # ... pendiente de confirmar antes de activar esto
 
     with open(salida, "wb") as f:
         writer.write(f)
